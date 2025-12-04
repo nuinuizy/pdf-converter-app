@@ -131,4 +131,31 @@ if uploaded_file:
         
     with col_set:
         # Checkbox ตัวช่วยเรื่อง Format
-        hq_table = st.checkbox("📐 เน้นตาราง
+        hq_table = st.checkbox("📐 เน้นตารางเป๊ะ (Fix Tables)", value=True, help="ติ๊กช่องนี้ถ้าไฟล์มีตารางเยอะ จะช่วยให้เส้นไม่หาย แต่อาจช้าลงนิดหน่อย")
+    
+    # Range Logic
+    start_p, end_p = 1, None
+    if mode == "เลือกหน้า (Custom)":
+        c_s, c_e = st.columns(2)
+        with c_s: start_p = st.number_input("หน้าแรก", 1, total_pages, 1)
+        with c_e: end_p = st.number_input("ถึงหน้า", start_p, total_pages, min(start_p+4, total_pages))
+    
+    st.markdown("---")
+    
+    if st.button("🚀 แปลงไฟล์ (Convert)"):
+        status_box = st.empty()
+        progress_bar = st.empty()
+        start_time = time.time()
+        
+        docx_data, docx_name = convert_pdf_to_docx(uploaded_file, start_p, end_p, status_box, progress_bar, hq_table)
+        
+        if docx_data:
+            duration = time.time() - start_time
+            status_box.success("✅ เสร็จสิ้น!")
+            
+            c1, c2 = st.columns([1, 1])
+            with c1: st.caption(f"Time: {duration:.2f}s | Size: {len(docx_data)/1024:.1f} KB")
+            with c2:
+                st.download_button("📥 Download Word", docx_data, docx_name, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+else:
+    st.info("💡 **Tip:** หากตารางเบี้ยว หรือเส้นหาย ให้ติ๊กช่อง **'เน้นตารางเป๊ะ'** จะช่วยได้ครับ")
