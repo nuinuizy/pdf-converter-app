@@ -5,32 +5,31 @@ import tempfile
 import time
 from docx import Document
 
-# --- 1. Config ---
-st.set_page_config(page_title="PDF2Word Pro", page_icon="⚡", layout="centered")
+# --- 1. Config (Clean & Pro) ---
+st.set_page_config(page_title="PDF2Word Pro", page_icon="📄", layout="centered")
 
 st.markdown("""
     <style>
         .block-container { padding-top: 2rem; padding-bottom: 2rem; }
         .stButton>button { 
             width: 100%; 
-            background-color: #FF4B4B; 
+            background-color: #000000; 
             color: white; 
             font-weight: bold; 
-            border-radius: 8px;
+            border-radius: 8px; 
             height: 50px;
         }
-        /* แต่ง Progress Bar ให้ดูดี */
-        .stProgress > div > div > div > div {
-            background-color: #FF4B4B;
-        }
+        /* Style ให้ UI ดูสะอาดตา */
+        .stAlert { padding: 0.5rem; }
         div[data-testid="column"] { gap: 0.5rem; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. Logic ---
+# --- 2. Logic (Stable & Complete) ---
 def repair_thai_docx(docx_path):
     try:
         doc = Document(docx_path)
+        # Logic ซ่อมสระ ำ (แบบเบาเครื่อง)
         def fix_sara_am(text):
             if not text or " ำ" not in text: return text
             return text.replace(" ำ", "ำ").replace(" ำ", "ำ")
@@ -48,7 +47,7 @@ def repair_thai_docx(docx_path):
         return True
     except: return False
 
-def convert_pdf_to_docx(uploaded_file, status_box, progress_bar, turbo_mode):
+def convert_pdf_to_docx(uploaded_file, start_page, end_page, status_box, progress_bar):
     with tempfile.TemporaryDirectory() as temp_dir:
         pdf_path = os.path.join(temp_dir, uploaded_file.name)
         with open(pdf_path, "wb") as f: f.write(uploaded_file.getbuffer())
@@ -57,81 +56,98 @@ def convert_pdf_to_docx(uploaded_file, status_box, progress_bar, turbo_mode):
         docx_path = os.path.join(temp_dir, docx_name)
         
         try:
-            # 1. เริ่มต้นเครื่องยนต์
-            status_box.info("⚙️ กำลังวิเคราะห์ไฟล์ PDF... (Initializing)")
+            status_box.info("⚙️ เริ่มต้นกระบวนการ... (Initializing)")
             progress_bar.progress(10)
             
+            # โหลดไฟล์เพื่อเตรียมแปลง
             cv = Converter(pdf_path)
             
-            # 2. นับจำนวนหน้า (ลูกเล่นใหม่!)
-            num_pages = len(cv.pages)
-            if num_pages > 10:
-                status_box.warning(f"⚠️ เจอไฟล์ใหญ่ {num_pages} หน้า! อาจใช้เวลา 2-5 นาที... กรุณารอห้ามปิดจอนะครับ")
-            else:
-                status_box.info(f"📄 เจอทั้งหมด {num_pages} หน้า กำลังเริ่มแปลงร่าง...")
+            # ถ้า end_page เป็น None แปลว่าเอาถึงหน้าสุดท้าย
+            if end_page is None:
+                end_page = len(cv.pages)
             
-            progress_bar.progress(20)
+            status_box.info(f"📄 กำลังแปลงหน้า {start_page} ถึง {end_page} (เก็บรายละเอียดครบถ้วน)...")
+            progress_bar.progress(30)
             
-            # 3. แปลงไฟล์ (The Heavy Lifting)
-            if turbo_mode:
-                # ตัดรูปทิ้ง เร็วขึ้น
-                cv.convert(docx_path, multi_processing=False, parse_images=False)
-            else:
-                # เอาครบ ช้าหน่อย
-                cv.convert(docx_path, multi_processing=False)
+            # --- จุดสำคัญ: สั่งแปลงเฉพาะหน้าที่เลือก ---
+            # start ต้องลบ 1 เพราะคอมนับเริ่มจาก 0
+            # multi_processing=False (สำคัญมาก ห้ามเอาออก เพื่อกันเครื่องค้าง)
+            cv.convert(docx_path, start=start_page-1, end=end_page, multi_processing=False)
             
             cv.close()
             
-            # 4. ซ่อมสระ
             progress_bar.progress(80)
             status_box.info("🔧 กำลังซ่อมสระภาษาไทย (Fixing Thai Vowels)...")
             repair_thai_docx(docx_path)
-            
             progress_bar.progress(100)
             
             with open(docx_path, "rb") as f: docx_data = f.read()
-            return docx_data, docx_name, num_pages
+            return docx_data, docx_name
             
         except Exception as e:
             st.error(f"เกิดข้อผิดพลาด: {e}")
-            return None, None, 0
+            return None, None
 
-# --- 3. UI (v2.6 Progress Bar) ---
+# --- 3. UI (Smart Range Selector) ---
 
 c1, c2 = st.columns([3, 1])
-c1.markdown("### ⚡ PDF to Word `Pro`")
-c2.markdown("<div style='text-align: right; color: gray; font-size: 0.8em; padding-top: 10px;'>v2.6 Progress</div>", unsafe_allow_html=True)
+c1.markdown("### 📄 PDF to Word `Smart`")
+c2.markdown("<div style='text-align: right; color: gray; font-size: 0.8em; padding-top: 10px;'>v3.0 Hybrid</div>", unsafe_allow_html=True)
 
 st.divider()
 
 uploaded_file = st.file_uploader("Upload PDF file", type="pdf", label_visibility="collapsed")
 
 if uploaded_file:
-    # Checkbox
-    turbo = st.checkbox("⚡ Turbo Mode (ตัดรูปภาพออก = เร็วขึ้น 3 เท่า)", value=True)
+    # อ่านจำนวนหน้าเบื้องต้น (ใช้ trick อ่านเร็วๆ)
+    try:
+        from pypdf import PdfReader
+        reader = PdfReader(uploaded_file)
+        total_pages = len(reader.pages)
+    except:
+        # ถ้าอ่านไม่ได้ ให้เดาว่ามีเยอะไว้ก่อน
+        total_pages = 100 
+
+    # --- ส่วนควบคุมการเลือกหน้า ---
+    st.write(f"พบเอกสารทั้งหมด **{total_pages}** หน้า")
     
-    run_btn = st.button("🚀 เริ่มแปลงไฟล์ (Start)")
+    col_opt, col_range = st.columns([1, 2])
     
-    # จองพื้นที่สำหรับ Bar และ Status
+    with col_opt:
+        mode = st.radio("ตัวเลือกการแปลง:", ["ทั้งหมด (All)", "ระบุหน้า (Custom)"])
+    
+    start_p, end_p = 1, None
+    
+    with col_range:
+        if mode == "ระบุหน้า (Custom)":
+            c_s, c_e = st.columns(2)
+            with c_s:
+                start_p = st.number_input("หน้าเริ่ม", min_value=1, max_value=total_pages, value=1)
+            with c_e:
+                end_p = st.number_input("ถึงหน้า", min_value=start_p, max_value=total_pages, value=min(start_p+4, total_pages))
+            st.caption("💡 แนะนำ: แปลงทีละ 5-10 หน้าจะเร็วมาก")
+        else:
+            st.info(f"⚠️ แปลงรวดเดียว {total_pages} หน้า อาจใช้เวลา 3-5 นาที")
+
+    st.markdown("---")
+    
+    run_btn = st.button("🚀 เริ่มแปลงไฟล์ (Start Convert)")
     status_box = st.empty()
     progress_bar = st.empty()
 
     if run_btn:
         start_time = time.time()
         
-        # ใส่ progress_bar ลงไปในฟังก์ชันด้วย
-        docx_data, docx_name, pages = convert_pdf_to_docx(uploaded_file, status_box, progress_bar, turbo)
+        docx_data, docx_name = convert_pdf_to_docx(uploaded_file, start_p, end_p, status_box, progress_bar)
         
         duration = time.time() - start_time
         
         if docx_data:
-            status_box.success(f"✅ เสร็จเรียบร้อย! (แปลงไปทั้งหมด {pages} หน้า)")
-            st.divider()
+            status_box.success("✅ เสร็จเรียบร้อย!")
             
             c_info, c_btn = st.columns([1.5, 2])
             with c_info:
-                st.caption(f"⏱️ เวลาที่ใช้: {duration:.2f}s")
-                st.caption(f"📦 ขนาดไฟล์: {len(docx_data)/1024:.1f} KB")
+                st.caption(f"⏱️ เวลา: {duration:.2f}s | 📦 ขนาด: {len(docx_data)/1024:.1f} KB")
             with c_btn:
                 st.download_button(
                     label="📥 ดาวน์โหลด Word (.docx)",
@@ -142,10 +158,10 @@ if uploaded_file:
 else:
     st.markdown(
         """
-        <div style='text-align: center; color: #666; padding: 20px;'>
-            <div style='font-size: 3em; margin-bottom: 10px;'>📄 📊 📝</div>
-            <div>อัปโหลดไฟล์ PDF เพื่อเริ่มงาน</div>
-            <div style='font-size: 0.8em; color: #999;'>(มี Progress Bar บอกสถานะแล้วนะ)</div>
+        <div style='text-align: center; color: #888; padding: 20px;'>
+            <div style='font-size: 3em; margin-bottom: 10px;'>📄</div>
+            <div>อัปโหลดไฟล์ PDF เพื่อเริ่มต้น</div>
+            <div style='font-size: 0.8em; color: #999;'>(รองรับภาษาไทย + เก็บรูปภาพครบถ้วน)</div>
         </div>
         """, 
         unsafe_allow_html=True
