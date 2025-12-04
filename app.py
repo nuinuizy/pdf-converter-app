@@ -4,10 +4,9 @@ import os
 import tempfile
 import time
 from docx import Document
-from docx.shared import Cm
 
 # --- 1. Config ---
-st.set_page_config(page_title="PDF2Word Pro", page_icon="💎", layout="centered")
+st.set_page_config(page_title="PDF2Word Layout", page_icon="📐", layout="centered")
 
 st.markdown("""
     <style>
@@ -20,25 +19,19 @@ st.markdown("""
             border-radius: 8px; 
             height: 50px;
         }
-        .stAlert { padding: 0.5rem; border-radius: 8px; }
         div[data-testid="column"] { gap: 0.5rem; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. Logic ---
-def repair_and_format_docx(docx_path):
+# --- 2. Logic (เน้นจัดหน้า + สระไทย) ---
+def repair_thai_docx(docx_path):
     try:
         doc = Document(docx_path)
         
-        # 1. ปรับขอบกระดาษให้กว้างขึ้น (กันข้อความตกขอบ)
-        sections = doc.sections
-        for section in sections:
-            section.top_margin = Cm(1.27)
-            section.bottom_margin = Cm(1.27)
-            section.left_margin = Cm(1.27)
-            section.right_margin = Cm(1.27)
+        # [แก้ไขสำคัญ] เอาส่วนที่ไปบังคับขอบกระดาษ (Margins) ออกแล้ว!
+        # ปล่อยให้ pdf2docx จัดการขอบกระดาษตามต้นฉบับ 100%
 
-        # 2. Logic ซ่อมสระ ำ
+        # Logic ซ่อมสระ ำ (อย่างเดียว ไม่ยุ่งกับ Layout)
         def fix_sara_am(text):
             if not text or " ำ" not in text: return text
             return text.replace(" ำ", "ำ").replace(" ำ", "ำ")
@@ -47,7 +40,6 @@ def repair_and_format_docx(docx_path):
             for run in para.runs:
                 run.text = fix_sara_am(run.text)
         
-        # วนลูปแก้ในตารางด้วย
         for table in doc.tables:
             for row in table.rows:
                 for cell in row.cells:
@@ -59,7 +51,7 @@ def repair_and_format_docx(docx_path):
         return True
     except: return False
 
-def convert_pdf_to_docx(uploaded_file, start_page, end_page, status_box, progress_bar, high_quality_table):
+def convert_pdf_to_docx(uploaded_file, start_page, end_page, status_box, progress_bar, strict_layout):
     with tempfile.TemporaryDirectory() as temp_dir:
         pdf_path = os.path.join(temp_dir, uploaded_file.name)
         with open(pdf_path, "wb") as f: f.write(uploaded_file.getbuffer())
@@ -68,32 +60,34 @@ def convert_pdf_to_docx(uploaded_file, start_page, end_page, status_box, progres
         docx_path = os.path.join(temp_dir, docx_name)
         
         try:
-            status_box.info("⚙️ Initializing Engine...")
-            progress_bar.progress(5)
+            status_box.info("📐 กำลังวิเคราะห์ Layout หน้ากระดาษ...")
+            progress_bar.progress(10)
             
             cv = Converter(pdf_path)
             if end_page is None: end_page = len(cv.pages)
             
-            status_box.info(f"💎 กำลังแปลงหน้า {start_page}-{end_page} ด้วยความละเอียดสูง...")
-            progress_bar.progress(20)
+            status_box.info(f"📄 กำลังแปลงหน้า {start_page}-{end_page} (โหมดรักษาย่อหน้า)...")
+            progress_bar.progress(30)
             
-            # --- TWEAKED SETTINGS (จุดสำคัญ) ---
+            # --- SETTINGS จูนย่อหน้า ---
             settings = {
                 "multi_processing": False, # กันค้าง
+                "parse_images": True,      # เอารูปด้วย
             }
             
-            if high_quality_table:
-                # โหมดเน้นตาราง: ใช้ lattice (เส้นขอบ) ช่วยแกะตาราง
-                settings["parse_lattices_tables"] = True 
-                # settings["connected_text"] = True # ช่วยเรื่องคำฉีก (แต่อาจทำให้อืด)
+            if strict_layout:
+                # 1. เชื่อมประโยค: พยายามรวมบรรทัดที่ขาดให้เป็นย่อหน้าเดียวกัน
+                settings["connected_text"] = True 
+                # 2. ระยะห่างบรรทัด: ปรับความไวในการขึ้นบรรทัดใหม่
+                settings["line_overlap_threshold"] = 0.6
             
             # เริ่มแปลง
             cv.convert(docx_path, start=start_page-1, end=end_page, **settings)
             cv.close()
             
             progress_bar.progress(80)
-            status_box.info("🔧 กำลังจัดหน้าและซ่อมสระ...")
-            repair_and_format_docx(docx_path)
+            status_box.info("🔧 กำลังซ่อมสระภาษาไทย...")
+            repair_thai_docx(docx_path)
             progress_bar.progress(100)
             
             with open(docx_path, "rb") as f: docx_data = f.read()
@@ -106,15 +100,15 @@ def convert_pdf_to_docx(uploaded_file, start_page, end_page, status_box, progres
 # --- 3. UI ---
 
 c1, c2 = st.columns([3, 1])
-c1.markdown("### 💎 PDF to Word `Hi-Fi`")
-c2.markdown("<div style='text-align: right; color: gray; font-size: 0.8em; padding-top: 10px;'>v3.1 High Fidelity</div>", unsafe_allow_html=True)
+c1.markdown("### 📐 PDF to Word `Layout`")
+c2.markdown("<div style='text-align: right; color: gray; font-size: 0.8em; padding-top: 10px;'>v3.3 Keep Layout</div>", unsafe_allow_html=True)
 
 st.divider()
 
 uploaded_file = st.file_uploader("Upload PDF file", type="pdf", label_visibility="collapsed")
 
 if uploaded_file:
-    # นับหน้าเร็วๆ
+    # นับหน้า
     try:
         from pypdf import PdfReader
         reader = PdfReader(uploaded_file)
@@ -123,17 +117,15 @@ if uploaded_file:
     
     st.write(f"เอกสารมี **{total_pages}** หน้า")
     
-    # Grid Layout
-    col_mode, col_set = st.columns([1, 1])
+    col_mode, col_opt = st.columns([1, 1])
     
     with col_mode:
         mode = st.radio("เลือกขอบเขต:", ["ทั้งหมด (All)", "เลือกหน้า (Custom)"])
         
-    with col_set:
-        # Checkbox ตัวช่วยเรื่อง Format
-        hq_table = st.checkbox("📐 เน้นตารางเป๊ะ (Fix Tables)", value=True, help="ติ๊กช่องนี้ถ้าไฟล์มีตารางเยอะ จะช่วยให้เส้นไม่หาย แต่อาจช้าลงนิดหน่อย")
+    with col_opt:
+        # Checkbox สำคัญ
+        strict = st.checkbox("📐 เชื่อมย่อหน้า (Smart Paragraph)", value=True, help="พยายามต่อประโยคที่ถูกตัดบรรทัดให้เป็นย่อหน้าเดียวกัน")
     
-    # Range Logic
     start_p, end_p = 1, None
     if mode == "เลือกหน้า (Custom)":
         c_s, c_e = st.columns(2)
@@ -147,7 +139,7 @@ if uploaded_file:
         progress_bar = st.empty()
         start_time = time.time()
         
-        docx_data, docx_name = convert_pdf_to_docx(uploaded_file, start_p, end_p, status_box, progress_bar, hq_table)
+        docx_data, docx_name = convert_pdf_to_docx(uploaded_file, start_p, end_p, status_box, progress_bar, strict)
         
         if docx_data:
             duration = time.time() - start_time
@@ -157,5 +149,3 @@ if uploaded_file:
             with c1: st.caption(f"Time: {duration:.2f}s | Size: {len(docx_data)/1024:.1f} KB")
             with c2:
                 st.download_button("📥 Download Word", docx_data, docx_name, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-else:
-    st.info("💡 **Tip:** หากตารางเบี้ยว หรือเส้นหาย ให้ติ๊กช่อง **'เน้นตารางเป๊ะ'** จะช่วยได้ครับ")
