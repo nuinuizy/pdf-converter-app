@@ -70,8 +70,8 @@ def convert_pdf_to_docx(uploaded_file):
             return None, None
 
 # --- UI ---
-st.title("📄 PDF to Word (Fix ' ำ' Only)")
-st.caption("แก้ปัญหา ' ำ' (เว้นวรรค + สระอำ) ให้กลับไปชิดพยัญชนะ")
+st.title("📄 PDF to Word (รองรับภาษาไทย)")
+st.caption("็Happy Everyday")
 
 uploaded_file = st.file_uploader("เลือกไฟล์ PDF", type="pdf")
 
@@ -81,10 +81,11 @@ if uploaded_file is not None:
             docx_data, docx_name = convert_pdf_to_docx(uploaded_file)
             
         if docx_data:
-            st.success("✅ เสร็จเรียบร้อย! สระอำน่าจะกลับบ้านถูกแล้วครับ")
+            st.success("✅ เสร็จเรียบร้อย! Have a good day")
             st.download_button(
                 label="📥 ดาวน์โหลดไฟล์ Word",
                 data=docx_data,
                 file_name=docx_name,
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             )
+
