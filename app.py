@@ -70,8 +70,8 @@ def convert_pdf_to_docx(uploaded_file):
             return None, None
 
 # --- UI ---
-st.title("📄 PDF to Word (รองรับภาษาไทย)")
-st.caption("็Happy Everyday")
+st.title("📄 PDF to Word [by WS] (รองรับภาษาไทย)")
+st.caption("Enjoy Work, Happy Everyday 😉")
 
 uploaded_file = st.file_uploader("เลือกไฟล์ PDF", type="pdf")
 
@@ -88,4 +88,5 @@ if uploaded_file is not None:
                 file_name=docx_name,
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             )
+
 
