@@ -5,7 +5,6 @@ import tempfile
 import time
 from docx import Document
 
-
 # --- 1. Pro Config ---
 st.set_page_config(page_title="PDF2Word Pro", page_icon="⚡", layout="centered")
 
@@ -40,7 +39,7 @@ def repair_thai_docx(docx_path):
         return True
     except: return False
 
-def convert_pdf_to_docx(uploaded_file, progress_bar, status_box, image_holder):
+def convert_pdf_to_docx(uploaded_file, progress_bar, status_box):
     with tempfile.TemporaryDirectory() as temp_dir:
         pdf_path = os.path.join(temp_dir, uploaded_file.name)
         with open(pdf_path, "wb") as f: f.write(uploaded_file.getbuffer())
@@ -49,9 +48,6 @@ def convert_pdf_to_docx(uploaded_file, progress_bar, status_box, image_holder):
         docx_path = os.path.join(temp_dir, docx_name)
         
         try:
-            # GIF ตอนทำงาน
-            image_holder.image("https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif", width=200)
-            
             status_box.info("⚙️ Engine Starting...")
             progress_bar.progress(10)
             
@@ -67,14 +63,10 @@ def convert_pdf_to_docx(uploaded_file, progress_bar, status_box, image_holder):
             progress_bar.progress(100)
             status_box.success("✅ Complete!")
             
-            # Clear Animation
-            image_holder.empty()
-            
             with open(docx_path, "rb") as f: docx_data = f.read()
             return docx_data, docx_name
         except Exception as e:
             status_box.error(f"Error: {e}")
-            image_holder.empty()
             return None, None
 
 # --- 3. UI Layout ---
@@ -98,11 +90,9 @@ if uploaded_file:
         status_box = st.empty()
         progress_bar = st.progress(0)
 
-    image_holder = st.empty()
-
     if run_btn:
         start_time = time.time()
-        docx_data, docx_name = convert_pdf_to_docx(uploaded_file, progress_bar, status_box, image_holder)
+        docx_data, docx_name = convert_pdf_to_docx(uploaded_file, progress_bar, status_box)
         duration = time.time() - start_time
         
         if docx_data:
@@ -118,7 +108,6 @@ if uploaded_file:
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 )
 else:
-    # Idle State: 3 จรวดเล็กน่ารัก
+    # Idle State: 3 จรวดเล็กน่ารัก (แก้ตรงนี้ให้แล้วครับ)
     st.markdown("<div style='text-align: center; font-size: 2em;'>🚀 🚀 🚀</div>", unsafe_allow_html=True)
     st.markdown("<div style='text-align: center; color: #555; margin-top: 5px;'>Waiting for input file...</div>", unsafe_allow_html=True)
-
