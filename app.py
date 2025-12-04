@@ -5,6 +5,7 @@ import tempfile
 import time
 from docx import Document
 
+
 # --- 1. Pro Config ---
 st.set_page_config(page_title="PDF2Word Pro", page_icon="⚡", layout="centered")
 
@@ -120,3 +121,4 @@ else:
     # Idle State: 3 จรวดเล็กน่ารัก
     st.markdown("<div style='text-align: center; font-size: 2em;'>🚀 🚀 🚀</div>", unsafe_allow_html=True)
     st.markdown("<div style='text-align: center; color: #555; margin-top: 5px;'>Waiting for input file...</div>", unsafe_allow_html=True)
+
