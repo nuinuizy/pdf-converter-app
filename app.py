@@ -16,7 +16,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. Logic ---
+# --- 2. Logic (Optimized) ---
 def repair_thai_docx(docx_path):
     try:
         doc = Document(docx_path)
@@ -53,7 +53,12 @@ def convert_pdf_to_docx(uploaded_file, progress_bar, status_box):
             
             # Conversion
             cv = Converter(pdf_path)
-            cv.convert(docx_path)
+            
+            # --- จุดแก้ความช้า (FIXED) ---
+            # multi_processing=False: บังคับใช้ Core เดียว ลดภาระเครื่องฟรี ทำให้ไม่ค้าง
+            # cpu_count=1: ย้ำอีกทีว่าขอใช้แค่ 1 แรงงานพอ
+            cv.convert(docx_path, multi_processing=False, cpu_count=1)
+            
             cv.close()
             progress_bar.progress(60)
             status_box.info("🔧 Patching Thai Vowels...")
@@ -73,7 +78,7 @@ def convert_pdf_to_docx(uploaded_file, progress_bar, status_box):
 
 c1, c2 = st.columns([3, 1])
 c1.markdown("### ⚡ PDF to Word `Pro`")
-c2.markdown("<div style='text-align: right; color: gray; font-size: 0.8em; padding-top: 10px;'>v2.0</div>", unsafe_allow_html=True)
+c2.markdown("<div style='text-align: right; color: gray; font-size: 0.8em; padding-top: 10px;'>v2.1 Fast</div>", unsafe_allow_html=True)
 
 st.divider()
 
@@ -108,6 +113,6 @@ if uploaded_file:
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 )
 else:
-    # Idle State: 3 จรวดเล็กน่ารัก (แก้ตรงนี้ให้แล้วครับ)
+    # Idle State
     st.markdown("<div style='text-align: center; font-size: 2em;'>🚀 🚀 🚀</div>", unsafe_allow_html=True)
     st.markdown("<div style='text-align: center; color: #555; margin-top: 5px;'>Waiting for input file...</div>", unsafe_allow_html=True)
