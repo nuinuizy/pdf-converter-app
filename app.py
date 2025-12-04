@@ -5,7 +5,7 @@ import tempfile
 import time
 from docx import Document
 
-# --- 1. Pro Config (ไม่ต้องลงอะไรเพิ่ม) ---
+# --- 1. Pro Config ---
 st.set_page_config(page_title="PDF2Word Pro", page_icon="⚡", layout="centered")
 
 st.markdown("""
@@ -16,7 +16,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. Logic เดิม (ซ่อมสระ ำ) ---
+# --- 2. Logic ---
 def repair_thai_docx(docx_path):
     try:
         doc = Document(docx_path)
@@ -48,7 +48,7 @@ def convert_pdf_to_docx(uploaded_file, progress_bar, status_box, image_holder):
         docx_path = os.path.join(temp_dir, docx_name)
         
         try:
-            # Show GIF Animation (รูปแมวพิมพ์คอม ดุ๊กดิ๊ก ตอนทำงาน)
+            # GIF ตอนทำงาน
             image_holder.image("https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif", width=200)
             
             status_box.info("⚙️ Engine Starting...")
@@ -76,11 +76,10 @@ def convert_pdf_to_docx(uploaded_file, progress_bar, status_box, image_holder):
             image_holder.empty()
             return None, None
 
-# --- 3. UI Layout (แก้ไขตามสั่ง) ---
+# --- 3. UI Layout ---
 
 c1, c2 = st.columns([3, 1])
 c1.markdown("### ⚡ PDF to Word `Pro`")
-# [แก้ไขจุดที่ 1] เปลี่ยนเวอร์ชันเป็น v2.0
 c2.markdown("<div style='text-align: right; color: gray; font-size: 0.8em; padding-top: 10px;'>v2.0</div>", unsafe_allow_html=True)
 
 st.divider()
@@ -98,12 +97,10 @@ if uploaded_file:
         status_box = st.empty()
         progress_bar = st.progress(0)
 
-    # Placeholder สำหรับรูป GIF ตอนทำงาน
     image_holder = st.empty()
 
     if run_btn:
         start_time = time.time()
-        # ส่ง image_holder เข้าไปในฟังก์ชันด้วย
         docx_data, docx_name = convert_pdf_to_docx(uploaded_file, progress_bar, status_box, image_holder)
         duration = time.time() - start_time
         
@@ -111,7 +108,6 @@ if uploaded_file:
             st.divider()
             r1, r2 = st.columns([2, 2])
             with r1:
-                # [แก้ไขจุดที่ 3] เปลี่ยนคำเป็น Processing time
                 st.caption(f"⏱️ Processing time: {duration:.2f}s | 📦 Size: {len(docx_data)/1024:.1f} KB")
             with r2:
                 st.download_button(
@@ -121,6 +117,6 @@ if uploaded_file:
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 )
 else:
-    # Idle State: [แก้ไขจุดที่ 2] เอา GIF ที่เสียออก ใส่ icon จรวดแทน
-    st.markdown("<div style='text-align: center; font-size: 4em;'>🚀</div>", unsafe_allow_html=True)
-    st.markdown("<div style='text-align: center; color: #555; margin-top: -10px;'>Waiting for input file...</div>", unsafe_allow_html=True)
+    # Idle State: 3 จรวดเล็กน่ารัก
+    st.markdown("<div style='text-align: center; font-size: 2em;'>🚀 🚀 🚀</div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align: center; color: #555; margin-top: 5px;'>Waiting for input file...</div>", unsafe_allow_html=True)
