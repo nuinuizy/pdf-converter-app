@@ -6,18 +6,32 @@ import time
 from docx import Document
 
 # --- 1. Config ---
-st.set_page_config(page_title="PDF2Word Pro", page_icon="📑", layout="centered")
+st.set_page_config(page_title="PDF to Word Pro", page_icon="📑", layout="centered")
 
+# --- CSS: สั่งซ่อนเมนูและปรับแต่งความสวยงาม ---
 st.markdown("""
     <style>
-        /* ซ่อนแถบ Toolbar ด้านบน (Share, Star, Hamburger Menu) */
-        .stApp > header {
-            visibility: hidden;
+        /* [สำคัญ] ซ่อน Header ด้านบนขวาทิ้งทั้งหมด */
+        /* ทำให้ปุ่ม Share, Star, Edit และเมนู Hacker News หายไป */
+        header[data-testid="stHeader"] {
+            display: none;
         }
-        /* ถ้าอยากซ่อน Footer คำว่า Made with Streamlit ด้วย ให้เปิดบรรทัดล่างนี้ */
-        /* footer {visibility: hidden;} */
+        .stApp > header {
+            display: none;
+        }
+        
+        /* ซ่อน Footer (Made with Streamlit) ให้ดู Clean ที่สุด */
+        footer {
+            display: none;
+        }
 
-        .block-container { padding-top: 2rem; padding-bottom: 2rem; }
+        /* ปรับระยะขอบหน้าจอ */
+        .block-container { 
+            padding-top: 2rem; 
+            padding-bottom: 2rem; 
+        }
+        
+        /* แต่งปุ่มกด */
         .stButton>button { 
             width: 100%; 
             background-color: #000000; 
@@ -30,7 +44,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. Logic (ตัวท็อป v3.5) ---
+# --- 2. Logic (V3.5 Full Layout) ---
 def repair_thai_docx(docx_path):
     try:
         doc = Document(docx_path)
@@ -48,10 +62,10 @@ def repair_thai_docx(docx_path):
                     for cell in row.cells:
                         process_container(cell)
 
-        # 1. Body
+        # 1. ซ่อม Body
         process_container(doc)
 
-        # 2. Header & Footer
+        # 2. ซ่อม Header & Footer
         for section in doc.sections:
             process_container(section.header)
             process_container(section.first_page_header)
@@ -73,7 +87,7 @@ def convert_pdf_to_docx(uploaded_file, start_page, end_page, status_box, progres
         docx_path = os.path.join(temp_dir, docx_name)
         
         try:
-            status_box.info("📑 เริ่มกระบวนการแกะ Layout และ Header/Footer...")
+            status_box.info("📑 เริ่มกระบวนการ... (Initializing)")
             progress_bar.progress(10)
             
             cv = Converter(pdf_path)
@@ -96,7 +110,7 @@ def convert_pdf_to_docx(uploaded_file, start_page, end_page, status_box, progres
             cv.close()
             
             progress_bar.progress(80)
-            status_box.info("🔧 ซ่อมสระภาษาไทย (รวมหัว/ท้ายกระดาษ)...")
+            status_box.info("🔧 ซ่อมสระภาษาไทย (Fixing Thai Vowels)...")
             repair_thai_docx(docx_path)
             progress_bar.progress(100)
             
@@ -110,9 +124,8 @@ def convert_pdf_to_docx(uploaded_file, start_page, end_page, status_box, progres
 # --- 3. UI ---
 
 c1, c2 = st.columns([3, 1])
-# [แก้ไข] เปลี่ยนชื่อเป็น Pro
+# ชื่อแอป Clean ๆ
 c1.markdown("### 📑 PDF to Word `Pro`")
-# [แก้ไข] เขียนแค่ V3.5
 c2.markdown("<div style='text-align: right; color: gray; font-size: 0.8em; padding-top: 10px;'>V3.5</div>", unsafe_allow_html=True)
 
 st.divider()
@@ -120,6 +133,7 @@ st.divider()
 uploaded_file = st.file_uploader("Upload PDF file", type="pdf", label_visibility="collapsed")
 
 if uploaded_file:
+    # นับหน้า
     try:
         from pypdf import PdfReader
         reader = PdfReader(uploaded_file)
@@ -134,7 +148,7 @@ if uploaded_file:
         mode = st.radio("เลือกขอบเขต:", ["ทั้งหมด (All)", "เลือกหน้า (Custom)"])
         
     with col_opt:
-        join_lines = st.checkbox("🔗 เชื่อมประโยค (Merge Lines)", value=False, help="ไม่ติ๊ก = ยึดบรรทัดตามต้นฉบับเป๊ะๆ (แนะนำ)\nติ๊ก = ให้โปรแกรมช่วยจัดย่อหน้าใหม่")
+        join_lines = st.checkbox("🔗 เชื่อมประโยค (Merge Lines)", value=False, help="ติ๊กช่องนี้ถ้าต้องการให้โปรแกรมช่วยจัดย่อหน้าใหม่ (ถ้าไม่ติ๊ก จะได้บรรทัดตรงตามต้นฉบับ)")
     
     start_p, end_p = 1, None
     if mode == "เลือกหน้า (Custom)":
