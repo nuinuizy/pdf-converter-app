@@ -5,168 +5,128 @@ import tempfile
 import time
 from docx import Document
 
-# --- Config & Style ---
-st.set_page_config(
-    page_title="PDF2Word Pro [WS-Core]", 
-    page_icon="⚡", 
-    layout="centered"
-)
+# --- 1. Compact Config & CSS (หัวใจสำคัญของหน้าเดียวจบ) ---
+st.set_page_config(page_title="PDF2Word Pro", page_icon="⚡", layout="centered")
 
-# Custom CSS for Tech Vibe (Hide default menu, custom font tweaks)
 st.markdown("""
     <style>
-    .stButton>button {
-        width: 100%;
-        border-radius: 5px;
-        height: 3em;
-        background-color: #FF4B4B;
-        color: white;
-    }
-    .reportview-container {
-        background: #0E1117;
-    }
+        /* ลด Padding ของหน้าจอ */
+        .block-container {
+            padding-top: 2rem;
+            padding-bottom: 1rem;
+        }
+        /* ปรับปุ่มให้เต็มช่อง */
+        .stButton>button {
+            width: 100%;
+            background-color: #FF4B4B;
+            color: white;
+            font-weight: bold;
+        }
+        /* ลดระยะห่าง Elements */
+        div[data-testid="column"] {
+            gap: 0rem;
+        }
     </style>
-    """, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
-# --- Core Logic (The Engine) ---
+# --- 2. Logic (เหมือนเดิม) ---
 def repair_thai_docx(docx_path):
     try:
         doc = Document(docx_path)
-        
         def fix_sara_am(text):
             if not text: return text
-            # Logic เดิมที่ถูกต้องแล้ว: แก้ Space หน้า ำ
             text = text.replace(" ำ", "ำ") 
             text = text.replace(" ำ", "ำ")
             return text
 
-        # Patching Process
         for para in doc.paragraphs:
             for run in para.runs:
                 if run.text: run.text = fix_sara_am(run.text)
-
         for table in doc.tables:
             for row in table.rows:
                 for cell in row.cells:
                     for para in cell.paragraphs:
                         for run in para.runs:
                             if run.text: run.text = fix_sara_am(run.text)
-                    
         doc.save(docx_path)
         return True
-    except Exception as e:
-        st.error(f"System Error during patch: {e}")
-        return False
+    except: return False
 
-def convert_pdf_to_docx(uploaded_file, progress_bar, status_text):
+def convert_pdf_to_docx(uploaded_file, progress_bar, status_box):
     with tempfile.TemporaryDirectory() as temp_dir:
         pdf_path = os.path.join(temp_dir, uploaded_file.name)
-        with open(pdf_path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
+        with open(pdf_path, "wb") as f: f.write(uploaded_file.getbuffer())
         
         docx_name = os.path.splitext(uploaded_file.name)[0] + ".docx"
         docx_path = os.path.join(temp_dir, docx_name)
         
         try:
-            # Step 1: Initialization
-            status_text.text("Status: Initializing Converter Engine...")
+            status_box.info("⚙️ Initializing...")
             progress_bar.progress(10)
-            time.sleep(0.5) # Simulate init
-
-            # Step 2: Conversion
-            status_text.text("Status: Extracting Layout & Text...")
+            
+            # Conversion
             cv = Converter(pdf_path)
             cv.convert(docx_path)
             cv.close()
             progress_bar.progress(60)
+            status_box.info("🔧 Patching Thai Vowels...")
             
-            # Step 3: Patching Thai Vowels
-            status_text.text("Status: Patching Thai Vowel (Sara Am) Glitch...")
+            # Patching
             repair_thai_docx(docx_path)
-            progress_bar.progress(90)
-            
-            # Step 4: Finalizing
-            status_text.text("Status: Finalizing Output...")
-            with open(docx_path, "rb") as f:
-                docx_data = f.read()
-            
             progress_bar.progress(100)
-            time.sleep(0.2)
-            return docx_data, docx_name
+            status_box.success("✅ Complete!")
             
+            with open(docx_path, "rb") as f: docx_data = f.read()
+            return docx_data, docx_name
         except Exception as e:
-            st.error(f"Critical Error: {e}")
+            status_box.error(f"Error: {e}")
             return None, None
 
-# --- UI / Dashboard Layout ---
+# --- 3. Compact UI Layout ---
 
-# Sidebar for Context
-with st.sidebar:
-    st.title("⚙️ Control Panel")
-    st.info("**System:** PDF2Word Converter\n\n**Version:** 2.1 (Patch WS)\n\n**Module:** Thai Language Fixer enabled.")
-    st.markdown("---")
-    st.caption("Designed for High-Performance Workflows.")
+# Header Section (บรรทัดเดียวจบ)
+c1, c2 = st.columns([3, 1])
+c1.markdown("### ⚡ PDF to Word `Compact`")
+c2.markdown("<div style='text-align: right; color: gray; font-size: 0.8em;'>v2.1 WS-Patch</div>", unsafe_allow_html=True)
 
-# Main Area
-col1, col2 = st.columns([3, 1])
-with col1:
-    st.title("PDF2Word `Pro`")
-    st.markdown("**Automated Document Conversion Utility**")
-with col2:
-    # Techy Status Badge
-    st.success("● System Online")
+st.divider()
 
-st.markdown("---")
+# Input Section
+uploaded_file = st.file_uploader("Upload PDF", type="pdf", label_visibility="collapsed")
 
-# File Upload Section
-uploaded_file = st.file_uploader("Drop your PDF source file here:", type="pdf")
-
-if uploaded_file is not None:
-    # File Details (Tech info)
-    file_stats = f"Filename: {uploaded_file.name} | Size: {uploaded_file.size / 1024:.2f} KB"
-    st.caption(f"📄 Source Detected: {file_stats}")
+if uploaded_file:
+    # Action Area: ใช้ Grid เพื่อประหยัดที่
+    # [ ปุ่ม Run ] [ Progress Bar ] [ Status Text ]
+    col_btn, col_prog = st.columns([1, 2])
     
-    st.markdown("###") # Spacer
-
-    if st.button("🚀 EXECUTE CONVERSION"):
-        # UI Elements for Process
+    with col_btn:
+        run_btn = st.button("🚀 GO")
+    
+    with col_prog:
+        # Placeholder ไว้รอรับ Status จะได้ไม่ดันหน้าจอลง
+        status_box = st.empty()
         progress_bar = st.progress(0)
-        status_text = st.empty()
-        
+
+    if run_btn:
         start_time = time.time()
-        
-        # Run Process
-        docx_data, docx_name = convert_pdf_to_docx(uploaded_file, progress_bar, status_text)
-        
-        end_time = time.time()
-        duration = end_time - start_time
+        docx_data, docx_name = convert_pdf_to_docx(uploaded_file, progress_bar, status_box)
+        duration = time.time() - start_time
         
         if docx_data:
-            st.markdown("---")
-            # Result Metrics
-            m1, m2 = st.columns(2)
-            m1.metric(label="Processing Time", value=f"{duration:.2f}s", delta="Completed")
-            m2.metric(label="Patch Status", value="Verified", delta="Clean")
+            st.divider()
+            # Result Section: [ Metrics ] [ Download Button ]
+            r1, r2 = st.columns([2, 2])
             
-            st.success("✅ Operation Successful. Output ready for deployment.")
+            with r1:
+                st.caption(f"⏱️ Time: {duration:.2f}s | 📦 Size: {len(docx_data)/1024:.1f} KB")
             
-            # Download
-            st.download_button(
-                label="📥 DOWNLOAD .DOCX",
-                data=docx_data,
-                file_name=docx_name,
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            )
-            
-    else:
-        st.info("Waiting for execution command...")
-
+            with r2:
+                st.download_button(
+                    label="📥 Download .DOCX",
+                    data=docx_data,
+                    file_name=docx_name,
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                )
 else:
-    # Empty State with minimal tech visual
-    st.markdown(
-        """
-        <div style='text-align: center; color: gray; margin-top: 50px;'>
-            Awaiting Input Stream...
-        </div>
-        """, unsafe_allow_html=True
-    )
+    # Empty State แบบ Minimal
+    st.markdown("<div style='text-align: center; color: #555; margin-top: 20px;'>Waiting for input file...</div>", unsafe_allow_html=True)
