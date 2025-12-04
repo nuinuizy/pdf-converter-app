@@ -4,9 +4,10 @@ import os
 import tempfile
 import time
 from docx import Document
+from docx.shared import Cm
 
-# --- 1. Config (Clean & Pro) ---
-st.set_page_config(page_title="PDF2Word Pro", page_icon="📄", layout="centered")
+# --- 1. Config ---
+st.set_page_config(page_title="PDF2Word Pro", page_icon="💎", layout="centered")
 
 st.markdown("""
     <style>
@@ -19,17 +20,25 @@ st.markdown("""
             border-radius: 8px; 
             height: 50px;
         }
-        /* Style ให้ UI ดูสะอาดตา */
-        .stAlert { padding: 0.5rem; }
+        .stAlert { padding: 0.5rem; border-radius: 8px; }
         div[data-testid="column"] { gap: 0.5rem; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. Logic (Stable & Complete) ---
-def repair_thai_docx(docx_path):
+# --- 2. Logic ---
+def repair_and_format_docx(docx_path):
     try:
         doc = Document(docx_path)
-        # Logic ซ่อมสระ ำ (แบบเบาเครื่อง)
+        
+        # 1. ปรับขอบกระดาษให้กว้างขึ้น (กันข้อความตกขอบ)
+        sections = doc.sections
+        for section in sections:
+            section.top_margin = Cm(1.27)
+            section.bottom_margin = Cm(1.27)
+            section.left_margin = Cm(1.27)
+            section.right_margin = Cm(1.27)
+
+        # 2. Logic ซ่อมสระ ำ
         def fix_sara_am(text):
             if not text or " ำ" not in text: return text
             return text.replace(" ำ", "ำ").replace(" ำ", "ำ")
@@ -37,17 +46,20 @@ def repair_thai_docx(docx_path):
         for para in doc.paragraphs:
             for run in para.runs:
                 run.text = fix_sara_am(run.text)
+        
+        # วนลูปแก้ในตารางด้วย
         for table in doc.tables:
             for row in table.rows:
                 for cell in row.cells:
                     for para in cell.paragraphs:
                         for run in para.runs:
                             run.text = fix_sara_am(run.text)
+                            
         doc.save(docx_path)
         return True
     except: return False
 
-def convert_pdf_to_docx(uploaded_file, start_page, end_page, status_box, progress_bar):
+def convert_pdf_to_docx(uploaded_file, start_page, end_page, status_box, progress_bar, high_quality_table):
     with tempfile.TemporaryDirectory() as temp_dir:
         pdf_path = os.path.join(temp_dir, uploaded_file.name)
         with open(pdf_path, "wb") as f: f.write(uploaded_file.getbuffer())
@@ -56,113 +68,67 @@ def convert_pdf_to_docx(uploaded_file, start_page, end_page, status_box, progres
         docx_path = os.path.join(temp_dir, docx_name)
         
         try:
-            status_box.info("⚙️ เริ่มต้นกระบวนการ... (Initializing)")
-            progress_bar.progress(10)
+            status_box.info("⚙️ Initializing Engine...")
+            progress_bar.progress(5)
             
-            # โหลดไฟล์เพื่อเตรียมแปลง
             cv = Converter(pdf_path)
+            if end_page is None: end_page = len(cv.pages)
             
-            # ถ้า end_page เป็น None แปลว่าเอาถึงหน้าสุดท้าย
-            if end_page is None:
-                end_page = len(cv.pages)
+            status_box.info(f"💎 กำลังแปลงหน้า {start_page}-{end_page} ด้วยความละเอียดสูง...")
+            progress_bar.progress(20)
             
-            status_box.info(f"📄 กำลังแปลงหน้า {start_page} ถึง {end_page} (เก็บรายละเอียดครบถ้วน)...")
-            progress_bar.progress(30)
+            # --- TWEAKED SETTINGS (จุดสำคัญ) ---
+            settings = {
+                "multi_processing": False, # กันค้าง
+            }
             
-            # --- จุดสำคัญ: สั่งแปลงเฉพาะหน้าที่เลือก ---
-            # start ต้องลบ 1 เพราะคอมนับเริ่มจาก 0
-            # multi_processing=False (สำคัญมาก ห้ามเอาออก เพื่อกันเครื่องค้าง)
-            cv.convert(docx_path, start=start_page-1, end=end_page, multi_processing=False)
+            if high_quality_table:
+                # โหมดเน้นตาราง: ใช้ lattice (เส้นขอบ) ช่วยแกะตาราง
+                settings["parse_lattices_tables"] = True 
+                # settings["connected_text"] = True # ช่วยเรื่องคำฉีก (แต่อาจทำให้อืด)
             
+            # เริ่มแปลง
+            cv.convert(docx_path, start=start_page-1, end=end_page, **settings)
             cv.close()
             
             progress_bar.progress(80)
-            status_box.info("🔧 กำลังซ่อมสระภาษาไทย (Fixing Thai Vowels)...")
-            repair_thai_docx(docx_path)
+            status_box.info("🔧 กำลังจัดหน้าและซ่อมสระ...")
+            repair_and_format_docx(docx_path)
             progress_bar.progress(100)
             
             with open(docx_path, "rb") as f: docx_data = f.read()
             return docx_data, docx_name
             
         except Exception as e:
-            st.error(f"เกิดข้อผิดพลาด: {e}")
+            st.error(f"Error: {e}")
             return None, None
 
-# --- 3. UI (Smart Range Selector) ---
+# --- 3. UI ---
 
 c1, c2 = st.columns([3, 1])
-c1.markdown("### 📄 PDF to Word `Smart`")
-c2.markdown("<div style='text-align: right; color: gray; font-size: 0.8em; padding-top: 10px;'>v3.0 Hybrid</div>", unsafe_allow_html=True)
+c1.markdown("### 💎 PDF to Word `Hi-Fi`")
+c2.markdown("<div style='text-align: right; color: gray; font-size: 0.8em; padding-top: 10px;'>v3.1 High Fidelity</div>", unsafe_allow_html=True)
 
 st.divider()
 
 uploaded_file = st.file_uploader("Upload PDF file", type="pdf", label_visibility="collapsed")
 
 if uploaded_file:
-    # อ่านจำนวนหน้าเบื้องต้น (ใช้ trick อ่านเร็วๆ)
+    # นับหน้าเร็วๆ
     try:
         from pypdf import PdfReader
         reader = PdfReader(uploaded_file)
         total_pages = len(reader.pages)
-    except:
-        # ถ้าอ่านไม่ได้ ให้เดาว่ามีเยอะไว้ก่อน
-        total_pages = 100 
-
-    # --- ส่วนควบคุมการเลือกหน้า ---
-    st.write(f"พบเอกสารทั้งหมด **{total_pages}** หน้า")
+    except: total_pages = 50
     
-    col_opt, col_range = st.columns([1, 2])
+    st.write(f"เอกสารมี **{total_pages}** หน้า")
     
-    with col_opt:
-        mode = st.radio("ตัวเลือกการแปลง:", ["ทั้งหมด (All)", "ระบุหน้า (Custom)"])
+    # Grid Layout
+    col_mode, col_set = st.columns([1, 1])
     
-    start_p, end_p = 1, None
-    
-    with col_range:
-        if mode == "ระบุหน้า (Custom)":
-            c_s, c_e = st.columns(2)
-            with c_s:
-                start_p = st.number_input("หน้าเริ่ม", min_value=1, max_value=total_pages, value=1)
-            with c_e:
-                end_p = st.number_input("ถึงหน้า", min_value=start_p, max_value=total_pages, value=min(start_p+4, total_pages))
-            st.caption("💡 แนะนำ: แปลงทีละ 5-10 หน้าจะเร็วมาก")
-        else:
-            st.info(f"⚠️ แปลงรวดเดียว {total_pages} หน้า อาจใช้เวลา 3-5 นาที")
-
-    st.markdown("---")
-    
-    run_btn = st.button("🚀 เริ่มแปลงไฟล์ (Start Convert)")
-    status_box = st.empty()
-    progress_bar = st.empty()
-
-    if run_btn:
-        start_time = time.time()
+    with col_mode:
+        mode = st.radio("เลือกขอบเขต:", ["ทั้งหมด (All)", "เลือกหน้า (Custom)"])
         
-        docx_data, docx_name = convert_pdf_to_docx(uploaded_file, start_p, end_p, status_box, progress_bar)
-        
-        duration = time.time() - start_time
-        
-        if docx_data:
-            status_box.success("✅ เสร็จเรียบร้อย!")
-            
-            c_info, c_btn = st.columns([1.5, 2])
-            with c_info:
-                st.caption(f"⏱️ เวลา: {duration:.2f}s | 📦 ขนาด: {len(docx_data)/1024:.1f} KB")
-            with c_btn:
-                st.download_button(
-                    label="📥 ดาวน์โหลด Word (.docx)",
-                    data=docx_data,
-                    file_name=docx_name,
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                )
-else:
-    st.markdown(
-        """
-        <div style='text-align: center; color: #888; padding: 20px;'>
-            <div style='font-size: 3em; margin-bottom: 10px;'>📄</div>
-            <div>อัปโหลดไฟล์ PDF เพื่อเริ่มต้น</div>
-            <div style='font-size: 0.8em; color: #999;'>(รองรับภาษาไทย + เก็บรูปภาพครบถ้วน)</div>
-        </div>
-        """, 
-        unsafe_allow_html=True
-    )
+    with col_set:
+        # Checkbox ตัวช่วยเรื่อง Format
+        hq_table = st.checkbox("📐 เน้นตาราง
