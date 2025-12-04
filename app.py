@@ -1,37 +1,19 @@
 import streamlit as st
-from pdf2docx import Converter
 import os
 import tempfile
 import time
-from docx import Document
 
 # --- 1. Config ---
 st.set_page_config(page_title="PDF to Word Pro", page_icon="📑", layout="centered")
 
-# --- CSS: สั่งซ่อนเมนูและปรับแต่งความสวยงาม ---
+# --- CSS: Clean UI (ซ่อน Header/Footer/Menu) ---
 st.markdown("""
     <style>
-        /* [สำคัญ] ซ่อน Header ด้านบนขวาทิ้งทั้งหมด */
-        /* ทำให้ปุ่ม Share, Star, Edit และเมนู Hacker News หายไป */
-        header[data-testid="stHeader"] {
-            display: none;
-        }
-        .stApp > header {
-            display: none;
-        }
+        header[data-testid="stHeader"] { display: none; }
+        .stApp > header { display: none; }
+        footer { display: none; }
         
-        /* ซ่อน Footer (Made with Streamlit) ให้ดู Clean ที่สุด */
-        footer {
-            display: none;
-        }
-
-        /* ปรับระยะขอบหน้าจอ */
-        .block-container { 
-            padding-top: 2rem; 
-            padding-bottom: 2rem; 
-        }
-        
-        /* แต่งปุ่มกด */
+        .block-container { padding-top: 2rem; padding-bottom: 2rem; }
         .stButton>button { 
             width: 100%; 
             background-color: #000000; 
@@ -44,9 +26,14 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. Logic (V3.5 Full Layout) ---
+# --- 2. Logic (Lazy Loading) ---
+# ย้าย Import หนักๆ มาไว้ข้างใน เพื่อให้ App เปิดตัวเร็วขึ้น
+
 def repair_thai_docx(docx_path):
     try:
+        # Lazy Import
+        from docx import Document
+        
         doc = Document(docx_path)
         
         def fix_sara_am(text):
@@ -62,10 +49,7 @@ def repair_thai_docx(docx_path):
                     for cell in row.cells:
                         process_container(cell)
 
-        # 1. ซ่อม Body
         process_container(doc)
-
-        # 2. ซ่อม Header & Footer
         for section in doc.sections:
             process_container(section.header)
             process_container(section.first_page_header)
@@ -87,6 +71,10 @@ def convert_pdf_to_docx(uploaded_file, start_page, end_page, status_box, progres
         docx_path = os.path.join(temp_dir, docx_name)
         
         try:
+            # Lazy Import: โหลดตอนกดปุ่มเท่านั้น
+            status_box.info("🚀 กำลังปลุกเครื่องยนต์ (Loading Engine)...")
+            from pdf2docx import Converter
+            
             status_box.info("📑 เริ่มกระบวนการ... (Initializing)")
             progress_bar.progress(10)
             
@@ -110,7 +98,7 @@ def convert_pdf_to_docx(uploaded_file, start_page, end_page, status_box, progres
             cv.close()
             
             progress_bar.progress(80)
-            status_box.info("🔧 ซ่อมสระภาษาไทย (Fixing Thai Vowels)...")
+            status_box.info("🔧 ซ่อมสระภาษาไทย...")
             repair_thai_docx(docx_path)
             progress_bar.progress(100)
             
@@ -124,16 +112,15 @@ def convert_pdf_to_docx(uploaded_file, start_page, end_page, status_box, progres
 # --- 3. UI ---
 
 c1, c2 = st.columns([3, 1])
-# ชื่อแอป Clean ๆ
 c1.markdown("### 📑 PDF to Word `Pro`")
-c2.markdown("<div style='text-align: right; color: gray; font-size: 0.8em; padding-top: 10px;'>V3.5</div>", unsafe_allow_html=True)
+c2.markdown("<div style='text-align: right; color: gray; font-size: 0.8em; padding-top: 10px;'>V3.6 Fast-UI</div>", unsafe_allow_html=True)
 
 st.divider()
 
 uploaded_file = st.file_uploader("Upload PDF file", type="pdf", label_visibility="collapsed")
 
 if uploaded_file:
-    # นับหน้า
+    # นับหน้าแบบ Lazy Import
     try:
         from pypdf import PdfReader
         reader = PdfReader(uploaded_file)
@@ -148,7 +135,7 @@ if uploaded_file:
         mode = st.radio("เลือกขอบเขต:", ["ทั้งหมด (All)", "เลือกหน้า (Custom)"])
         
     with col_opt:
-        join_lines = st.checkbox("🔗 เชื่อมประโยค (Merge Lines)", value=False, help="ติ๊กช่องนี้ถ้าต้องการให้โปรแกรมช่วยจัดย่อหน้าใหม่ (ถ้าไม่ติ๊ก จะได้บรรทัดตรงตามต้นฉบับ)")
+        join_lines = st.checkbox("🔗 เชื่อมประโยค (Merge Lines)", value=False, help="ช่วยจัดย่อหน้าใหม่")
     
     start_p, end_p = 1, None
     if mode == "เลือกหน้า (Custom)":
