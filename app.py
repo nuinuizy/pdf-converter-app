@@ -10,6 +10,13 @@ st.set_page_config(page_title="PDF2Word Pro", page_icon="📑", layout="centered
 
 st.markdown("""
     <style>
+        /* ซ่อนแถบ Toolbar ด้านบน (Share, Star, Hamburger Menu) */
+        .stApp > header {
+            visibility: hidden;
+        }
+        /* ถ้าอยากซ่อน Footer คำว่า Made with Streamlit ด้วย ให้เปิดบรรทัดล่างนี้ */
+        /* footer {visibility: hidden;} */
+
         .block-container { padding-top: 2rem; padding-bottom: 2rem; }
         .stButton>button { 
             width: 100%; 
@@ -23,39 +30,31 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. Logic (ซ่อมทุกซอกทุกมุม) ---
+# --- 2. Logic (ตัวท็อป v3.5) ---
 def repair_thai_docx(docx_path):
     try:
         doc = Document(docx_path)
         
-        # ฟังก์ชันซ่อมสระ
         def fix_sara_am(text):
             if not text or " ำ" not in text: return text
             return text.replace(" ำ", "ำ").replace(" ำ", "ำ")
 
-        # ฟังก์ชันวนลูปแก้ Paragraphs และ Tables
         def process_container(container):
-            # แก้ในย่อหน้า (Paragraphs)
             for para in container.paragraphs:
                 for run in para.runs:
                     run.text = fix_sara_am(run.text)
-            # แก้ในตาราง (Tables)
             for table in container.tables:
                 for row in table.rows:
                     for cell in row.cells:
-                        process_container(cell) # Recursive เข้าไปในเซลล์
+                        process_container(cell)
 
-        # 1. ซ่อมเนื้อหาหลัก (Body)
+        # 1. Body
         process_container(doc)
 
-        # 2. ซ่อม Header & Footer (หัวและท้ายกระดาษ)
-        # ต้องวนลูปทุก Section เพราะเอกสารอาจมีหลายส่วน
+        # 2. Header & Footer
         for section in doc.sections:
-            # ซ่อม Header
             process_container(section.header)
-            process_container(section.first_page_header) # เผื่อหน้าแรกไม่เหมือนหน้าอื่น
-            
-            # ซ่อม Footer
+            process_container(section.first_page_header)
             process_container(section.footer)
             process_container(section.first_page_footer)
 
@@ -83,14 +82,11 @@ def convert_pdf_to_docx(uploaded_file, start_page, end_page, status_box, progres
             status_box.info(f"📄 กำลังแปลงหน้า {start_page}-{end_page}...")
             progress_bar.progress(30)
             
-            # --- SETTINGS ---
             settings = {
                 "multi_processing": False, 
-                "parse_images": True,       # สำคัญ! เพราะ Header ชอบมีโลโก้
-                # "parse_section_header_footer": True # ปกติเป็น Default อยู่แล้ว แต่เราเน้นให้มันทำงาน
+                "parse_images": True,
             }
             
-            # การจัดการย่อหน้า (ตามที่คุณขอเรื่องบรรทัด)
             if join_lines:
                 settings["connected_text"] = True 
             else:
@@ -114,15 +110,16 @@ def convert_pdf_to_docx(uploaded_file, start_page, end_page, status_box, progres
 # --- 3. UI ---
 
 c1, c2 = st.columns([3, 1])
-c1.markdown("### 📑 PDF to Word `Full Layout`")
-c2.markdown("<div style='text-align: right; color: gray; font-size: 0.8em; padding-top: 10px;'>v3.5 Header/Footer</div>", unsafe_allow_html=True)
+# [แก้ไข] เปลี่ยนชื่อเป็น Pro
+c1.markdown("### 📑 PDF to Word `Pro`")
+# [แก้ไข] เขียนแค่ V3.5
+c2.markdown("<div style='text-align: right; color: gray; font-size: 0.8em; padding-top: 10px;'>V3.5</div>", unsafe_allow_html=True)
 
 st.divider()
 
 uploaded_file = st.file_uploader("Upload PDF file", type="pdf", label_visibility="collapsed")
 
 if uploaded_file:
-    # นับหน้า
     try:
         from pypdf import PdfReader
         reader = PdfReader(uploaded_file)
@@ -137,7 +134,6 @@ if uploaded_file:
         mode = st.radio("เลือกขอบเขต:", ["ทั้งหมด (All)", "เลือกหน้า (Custom)"])
         
     with col_opt:
-        # Checkbox เดิมที่ยังคงไว้ เพราะมีผลกับย่อหน้า
         join_lines = st.checkbox("🔗 เชื่อมประโยค (Merge Lines)", value=False, help="ไม่ติ๊ก = ยึดบรรทัดตามต้นฉบับเป๊ะๆ (แนะนำ)\nติ๊ก = ให้โปรแกรมช่วยจัดย่อหน้าใหม่")
     
     start_p, end_p = 1, None
