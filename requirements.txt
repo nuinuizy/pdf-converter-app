@@ -1,4 +1,5 @@
 streamlit
 pdf2docx
 python-docx
+pypdf
 opencv-python-headless
