@@ -2,11 +2,12 @@ import streamlit as st
 import os
 import tempfile
 import time
+import threading
 
 # --- 1. Config ---
 st.set_page_config(page_title="PDF to Word Pro", page_icon="📑", layout="centered")
 
-# --- CSS: Clean UI (ซ่อน Header/Footer/Menu) ---
+# --- CSS: Clean UI ---
 st.markdown("""
     <style>
         header[data-testid="stHeader"] { display: none; }
@@ -26,14 +27,37 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. Logic (Lazy Loading) ---
-# ย้าย Import หนักๆ มาไว้ข้างใน เพื่อให้ App เปิดตัวเร็วขึ้น
+# --- 2. Global Libs Placeholder (เทคนิคแอบโหลด) ---
+# สร้างตัวแปรมารอรับ Library
+lib_converter = None
+lib_document = None
+lib_loading_thread = None
+
+def load_libraries_background():
+    """ฟังก์ชันนี้จะทำงานเงียบๆ ใน Background เพื่อโหลดของหนัก"""
+    global lib_converter, lib_document
+    try:
+        from pdf2docx import Converter
+        from docx import Document
+        lib_converter = Converter
+        lib_document = Document
+        print("✅ Libraries loaded in background!")
+    except Exception as e:
+        print(f"Background load failed: {e}")
+
+# สั่งให้เริ่มแอบโหลดทันทีที่เปิดแอป (run once)
+if lib_loading_thread is None:
+    lib_loading_thread = threading.Thread(target=load_libraries_background)
+    lib_loading_thread.start()
+
+# --- 3. Logic ---
 
 def repair_thai_docx(docx_path):
     try:
-        # Lazy Import
-        from docx import Document
-        
+        # ใช้ตัวแปร Global ที่โหลดเสร็จแล้ว
+        Document = lib_document 
+        if Document is None: from docx import Document # กันเหนียว
+
         doc = Document(docx_path)
         
         def fix_sara_am(text):
@@ -63,6 +87,18 @@ def repair_thai_docx(docx_path):
         return False
 
 def convert_pdf_to_docx(uploaded_file, start_page, end_page, status_box, progress_bar, join_lines):
+    # เช็คว่า Library โหลดเสร็จหรือยัง
+    global lib_converter
+    if lib_converter is None:
+        status_box.info("⏳ กำลังวอร์มเครื่องยนต์ (Warming up)...")
+        # รอจนกว่า Thread จะโหลดเสร็จ
+        lib_loading_thread.join()
+        # อัปเดตตัวแปร
+        from pdf2docx import Converter
+        lib_converter = Converter
+
+    Converter = lib_converter
+
     with tempfile.TemporaryDirectory() as temp_dir:
         pdf_path = os.path.join(temp_dir, uploaded_file.name)
         with open(pdf_path, "wb") as f: f.write(uploaded_file.getbuffer())
@@ -71,11 +107,7 @@ def convert_pdf_to_docx(uploaded_file, start_page, end_page, status_box, progres
         docx_path = os.path.join(temp_dir, docx_name)
         
         try:
-            # Lazy Import: โหลดตอนกดปุ่มเท่านั้น
-            status_box.info("🚀 กำลังปลุกเครื่องยนต์ (Loading Engine)...")
-            from pdf2docx import Converter
-            
-            status_box.info("📑 เริ่มกระบวนการ... (Initializing)")
+            status_box.info("📑 เริ่มกระบวนการ... (Processing)")
             progress_bar.progress(10)
             
             cv = Converter(pdf_path)
@@ -109,18 +141,18 @@ def convert_pdf_to_docx(uploaded_file, start_page, end_page, status_box, progres
             st.error(f"Error: {e}")
             return None, None
 
-# --- 3. UI ---
+# --- 4. UI ---
 
 c1, c2 = st.columns([3, 1])
 c1.markdown("### 📑 PDF to Word `Pro`")
-c2.markdown("<div style='text-align: right; color: gray; font-size: 0.8em; padding-top: 10px;'>V3.6 Fast-UI</div>", unsafe_allow_html=True)
+c2.markdown("<div style='text-align: right; color: gray; font-size: 0.8em; padding-top: 10px;'>V3.7 Pre-load</div>", unsafe_allow_html=True)
 
 st.divider()
 
 uploaded_file = st.file_uploader("Upload PDF file", type="pdf", label_visibility="collapsed")
 
 if uploaded_file:
-    # นับหน้าแบบ Lazy Import
+    # นับหน้า (ใช้ pypdf ที่เบาและเร็ว)
     try:
         from pypdf import PdfReader
         reader = PdfReader(uploaded_file)
