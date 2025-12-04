@@ -5,31 +5,18 @@ import tempfile
 import time
 from docx import Document
 
-# --- 1. Compact Config & CSS (หัวใจสำคัญของหน้าเดียวจบ) ---
+# --- 1. Pro Config (ไม่ต้องลงอะไรเพิ่ม) ---
 st.set_page_config(page_title="PDF2Word Pro", page_icon="⚡", layout="centered")
 
 st.markdown("""
     <style>
-        /* ลด Padding ของหน้าจอ */
-        .block-container {
-            padding-top: 2rem;
-            padding-bottom: 1rem;
-        }
-        /* ปรับปุ่มให้เต็มช่อง */
-        .stButton>button {
-            width: 100%;
-            background-color: #FF4B4B;
-            color: white;
-            font-weight: bold;
-        }
-        /* ลดระยะห่าง Elements */
-        div[data-testid="column"] {
-            gap: 0rem;
-        }
+        .block-container { padding-top: 2rem; padding-bottom: 1rem; }
+        .stButton>button { width: 100%; background-color: #FF4B4B; color: white; font-weight: bold; }
+        div[data-testid="column"] { gap: 0.5rem; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. Logic (เหมือนเดิม) ---
+# --- 2. Logic เดิม (ซ่อมสระ ำ) ---
 def repair_thai_docx(docx_path):
     try:
         doc = Document(docx_path)
@@ -52,7 +39,7 @@ def repair_thai_docx(docx_path):
         return True
     except: return False
 
-def convert_pdf_to_docx(uploaded_file, progress_bar, status_box):
+def convert_pdf_to_docx(uploaded_file, progress_bar, status_box, image_holder):
     with tempfile.TemporaryDirectory() as temp_dir:
         pdf_path = os.path.join(temp_dir, uploaded_file.name)
         with open(pdf_path, "wb") as f: f.write(uploaded_file.getbuffer())
@@ -61,7 +48,10 @@ def convert_pdf_to_docx(uploaded_file, progress_bar, status_box):
         docx_path = os.path.join(temp_dir, docx_name)
         
         try:
-            status_box.info("⚙️ Initializing...")
+            # Show GIF Animation (รูปแมวพิมพ์คอม ดุ๊กดิ๊ก)
+            image_holder.image("https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif", width=200)
+            
+            status_box.info("⚙️ Engine Starting...")
             progress_bar.progress(10)
             
             # Conversion
@@ -76,57 +66,61 @@ def convert_pdf_to_docx(uploaded_file, progress_bar, status_box):
             progress_bar.progress(100)
             status_box.success("✅ Complete!")
             
+            # Clear Animation
+            image_holder.empty()
+            
             with open(docx_path, "rb") as f: docx_data = f.read()
             return docx_data, docx_name
         except Exception as e:
             status_box.error(f"Error: {e}")
+            image_holder.empty()
             return None, None
 
-# --- 3. Compact UI Layout ---
+# --- 3. UI Layout (GIF Version) ---
 
-# Header Section (บรรทัดเดียวจบ)
 c1, c2 = st.columns([3, 1])
-c1.markdown("### ⚡ PDF to Word `Compact`")
-c2.markdown("<div style='text-align: right; color: gray; font-size: 0.8em;'>v2.1 WS-Patch</div>", unsafe_allow_html=True)
+c1.markdown("### ⚡ PDF to Word `Pro`")
+c2.markdown("<div style='text-align: right; color: gray; font-size: 0.8em; padding-top: 10px;'>v3.1 GIF Edition</div>", unsafe_allow_html=True)
 
 st.divider()
 
-# Input Section
 uploaded_file = st.file_uploader("Upload PDF", type="pdf", label_visibility="collapsed")
 
 if uploaded_file:
-    # Action Area: ใช้ Grid เพื่อประหยัดที่
-    # [ ปุ่ม Run ] [ Progress Bar ] [ Status Text ]
+    # Action Area
     col_btn, col_prog = st.columns([1, 2])
     
     with col_btn:
-        run_btn = st.button("🚀 GO")
+        run_btn = st.button("🚀 START")
     
     with col_prog:
-        # Placeholder ไว้รอรับ Status จะได้ไม่ดันหน้าจอลง
         status_box = st.empty()
         progress_bar = st.progress(0)
 
+    # Placeholder สำหรับรูป GIF
+    image_holder = st.empty()
+
     if run_btn:
         start_time = time.time()
-        docx_data, docx_name = convert_pdf_to_docx(uploaded_file, progress_bar, status_box)
+        # ส่ง image_holder เข้าไปในฟังก์ชันด้วย
+        docx_data, docx_name = convert_pdf_to_docx(uploaded_file, progress_bar, status_box, image_holder)
         duration = time.time() - start_time
         
         if docx_data:
             st.divider()
-            # Result Section: [ Metrics ] [ Download Button ]
             r1, r2 = st.columns([2, 2])
-            
             with r1:
                 st.caption(f"⏱️ Time: {duration:.2f}s | 📦 Size: {len(docx_data)/1024:.1f} KB")
-            
             with r2:
                 st.download_button(
-                    label="📥 Download .DOCX",
+                    label="📥 Download Result",
                     data=docx_data,
                     file_name=docx_name,
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 )
 else:
-    # Empty State แบบ Minimal
-    st.markdown("<div style='text-align: center; color: #555; margin-top: 20px;'>Waiting for input file...</div>", unsafe_allow_html=True)
+    # Idle State: แสดงรูปนิ่งๆ หรือ GIF รอ
+    st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
+    st.image("https://media.giphy.com/media/l3vQY93bN54QXJBoy/giphy.gif", width=100) # รูป Robot รอ
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align: center; color: #555; margin-top: -10px;'>Waiting for input file...</div>", unsafe_allow_html=True)
